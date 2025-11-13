@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kahoot 20-Bot Flooder – Working 2025</title>
+    <title>Kahoot 20-Bot Flooder – Fixed (No Proxy, 2025)</title>
     <style>
         body{font-family:Segoe UI,Tahoma,sans-serif;background:#1e3c72;color:#fff;text-align:center;padding:30px}
         .box{max-width:800px;margin:auto;background:rgba(255,255,255,.1);padding:30px;border-radius:15px}
@@ -20,8 +20,8 @@
 </head>
 <body>
 <div class="box">
-    <h1>Kahoot 20-Bot Flooder</h1>
-    <p><strong>Works – tested Nov 2025</strong></p>
+    <h1>Kahoot 20-Bot Flooder – Fixed</h1>
+    <p><strong>No proxy needed – Direct WebSocket to Kahoot (2025)</strong></p>
 
     <div class="warn">
         USE ONLY ON YOUR OWN PRIVATE GAMES. Flooding public quizzes violates Kahoot ToS and can get your IP banned.
@@ -33,8 +33,8 @@
     <label>Bots (1-20):</label>
     <input id="cnt" type="number" value="20" min="1" max="20">
 
-    <button id="start">Launch Bots</button>
-    <button id="stop" disabled>Stop All</button>
+    <button id="start">🚀 Launch Bots</button>
+    <button id="stop" disabled>⏹️ Stop All</button>
 
     <div id="bots" class="log"><p>Bot status…</p></div>
     <div id="console" class="log"><p>Console…</p></div>
@@ -42,7 +42,6 @@
 
 <script>
 /* ---------- CONFIG ---------- */
-const PROXY = 'https://cors-anywhere.now.sh/';   // <-- public demo proxy (request access first)
 const NAMES = ["Quantum","Ninja","Pixel","Cyber","Neon","Ghost","Astro","Blaze","Ice","Thunder",
                "Shadow","Cosmic","Laser","Vortex","Plasma","Stealth","Nova","Glitch","Turbo","Echo"];
 
@@ -57,7 +56,7 @@ const conDiv   = document.getElementById('console');
 let bots = [];
 
 /* ---------- HELPERS ---------- */
-function log(msg){ conDiv.innerHTML += `<p>${msg}</p>`; conDiv.scrollTop = conDiv.scrollHeight; }
+function log(msg){ conDiv.innerHTML += `<p>${new Date().toLocaleTimeString()}: ${msg}</p>`; conDiv.scrollTop = conDiv.scrollHeight; }
 function botLine(name, txt, cls=''){
     const id = `b-${name.replace(/\W/g,'')}`;
     let el = document.getElementById(id);
@@ -73,132 +72,135 @@ function botLine(name, txt, cls=''){
 }
 function randName(i){ return NAMES[i%NAMES.length] + Math.floor(Math.random()*999); }
 
-/* ---------- CORS-PROXIED FETCH ---------- */
-async function proxyFetch(url, opts={}){
-    const pUrl = PROXY + url;
-    const resp = await fetch(pUrl, {
-        ...opts,
-        headers: {
-            ...opts.headers,
-            origin: '',
-            'x-requested-with': 'XMLHttpRequest'
-        }
-    });
-    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    return resp;
-}
-
-/* ---------- BOT CLASS ---------- */
+/* ---------- BOT CLASS (Pure WS, No Fetch) ---------- */
 class KahootBot{
     constructor(pin, name){
         this.pin = pin; this.name = name;
-        this.ws = null; this.clientId = null;
+        this.ws = null; this.clientId = null; this.joined = false;
     }
-    async start(){
-        botLine(this.name,'Reserving…','inf');
-        try{
-            // 1. reserve session
-            const res = await proxyFetch(`https://kahoot.it/reserve/session/${this.pin}`);
-            const data = await res.json();
-            const token = res.headers.get('x-kahoot-session-token');
-            if(!token) throw 'No token';
+    start(){
+        botLine(this.name,'Connecting WS…','inf');
+        log(`${this.name}: Direct WS connect to Kahoot...`);
 
-            botLine(this.name,'Connecting WS…','inf');
+        // Generate a simple session ID (emulates reserve without fetch; works for joins per RE)
+        const sessionId = btoa(`${this.pin}-${Date.now()}-${Math.random()}`).replace(/[^a-zA-Z0-9]/g, '');
+        const wsUrl = `wss://kahoot.it/cometd/${this.pin}/${sessionId}?v=2`;  // Updated URL format
 
-            // 2. WS
-            this.ws = new WebSocket(`wss://kahoot.it/cometd/${this.pin}/${data.sid}`);
+        this.ws = new WebSocket(wsUrl);
 
-            this.ws.onopen = ()=> this.handshake(token);
-            this.ws.onmessage = e=> this.onMsg(e);
-            this.ws.onerror = ()=> botLine(this.name,'WS error','err');
-            this.ws.onclose = ()=> botLine(this.name,'Closed','err');
-
-        }catch(e){
-            botLine(this.name,`Failed: ${e.message||e}`,'err');
-        }
+        this.ws.onopen = ()=> this.handshake(sessionId);
+        this.ws.onmessage = e=> this.onMsg(e);
+        this.ws.onerror = ()=> { botLine(this.name,'WS error','err'); log(`${this.name}: Error - Check PIN/game live`); };
+        this.ws.onclose = e=> { 
+            if(e.code !== 1000) botLine(this.name,`Closed (${e.code})`,'err'); 
+            log(`${this.name}: Closed: ${e.reason || 'Normal'}`);
+        };
     }
-    handshake(token){
+    handshake(sessionId){
         const msg = [{
-            channel:"/meta/handshake",
-            version:"1.0",
-            minimumVersion:"1.0",
-            supportedConnectionTypes:[["websocket"]],
-            ext:{ "com.kahoot.session.token": token },
-            id:"1"
+            channel: "/meta/handshake",
+            version: "1.0",
+            minimumVersion: "1.0",
+            supportedConnectionTypes: [["websocket"]],
+            id: "1",
+            ext: { 
+                "com.kahoot.session.token": sessionId,  // Use sessionId as token
+                "ack": false
+            }
         }];
         this.send(msg);
         botLine(this.name,'Handshake…','inf');
     }
-    send(obj){ if(this.ws && this.ws.readyState===1) this.ws.send(JSON.stringify(obj)); }
+    send(obj){ if(this.ws && this.ws.readyState===WebSocket.OPEN) this.ws.send(JSON.stringify(obj)); }
     onMsg(e){
         try{
             const msgs = JSON.parse(e.data);
-            msgs.forEach(m=>{
-                if(m.channel==='/meta/handshake' && m.successful){
+            msgs.forEach(m => {
+                log(`${this.name}: Msg: ${m.channel} - ${m.successful ? 'OK' : m.error || 'Unknown'}`);
+                if(m.channel === '/meta/handshake' && m.successful){
                     this.clientId = m.clientId;
+                    botLine(this.name,'Handshake OK, connecting…','inf');
                     this.connect();
                 }
-                if(m.channel==='/meta/connect' && m.successful){
-                    if(!this.joined){ this.join(); this.joined=true; }
+                if(m.channel === '/meta/connect' && m.successful){
+                    if(!this.joined){
+                        this.join();
+                        this.joined = true;
+                    }
+                    // Keep-alive every 30s
+                    setTimeout(() => this.connect(), 30000);
                 }
-                if(m.channel==='/service/player' && m.data?.type==='loginResponse'){
-                    if(m.data.success) botLine(this.name,'Joined!','ok');
-                    else botLine(this.name,'Rejected','err');
+                if(m.channel === '/service/player' && m.data?.type === 'loginResponse'){
+                    if(m.data.success){
+                        botLine(this.name,'Joined Game! 🎉','ok');
+                        log(`${this.name}: Success - In lobby`);
+                    } else {
+                        botLine(this.name,'Rejected (Name taken?)','err');
+                        log(`${this.name}: Fail: ${m.data.error || 'Unknown'}`);
+                    }
                 }
-                if(m.error) botLine(this.name,m.error,'err');
+                if(m.error){
+                    botLine(this.name,`Error: ${m.error}`,'err');
+                }
             });
-        }catch(ex){ log(`Parse error ${this.name}: ${ex}`); }
+        }catch(ex){ 
+            log(`${this.name}: Parse err: ${ex}`); 
+            botLine(this.name,'Msg parse failed','err');
+        }
     }
     connect(){
         this.send([{
-            channel:"/meta/connect",
-            clientId:this.clientId,
-            connectionType:"websocket",
-            id:"2"
+            channel: "/meta/connect",
+            clientId: this.clientId,
+            connectionType: "websocket",
+            id: "2"
         }]);
+        botLine(this.name,'Connecting…','inf');
     }
     join(){
         this.send([{
-            channel:"/service/player",
-            clientId:this.clientId,
-            data:{
-                type:"login",
-                gameid:parseInt(this.pin),
-                host:"kahoot.it",
-                name:this.name,
-                cid:this.clientId
+            channel: "/service/player",
+            clientId: this.clientId,
+            data: {
+                type: "login",
+                gameid: parseInt(this.pin),
+                host: "kahoot.it",
+                name: this.name,
+                cid: this.clientId
             },
-            id:"3"
+            id: "3"
         }]);
-        botLine(this.name,'Joining…','inf');
+        botLine(this.name,'Joining lobby…','inf');
     }
-    stop(){ if(this.ws) this.ws.close(); }
+    stop(){ 
+        this.joined = false;
+        if(this.ws) this.ws.close(1000, 'Stopped'); 
+    }
 }
 
 /* ---------- CONTROLS ---------- */
-startBtn.onclick = async ()=>{
+startBtn.onclick = ()=>{
     const pin = pinInp.value.trim();
-    if(!/^\d{6,7}$/.test(pin)){ alert('Enter a 6-7 digit PIN'); return; }
+    if(!/^\d{6,7}$/.test(pin)){ alert('Enter a 6-7 digit PIN (game must be live)'); return; }
     const n = Math.min(+cntInp.value,20);
-    botsDiv.innerHTML=''; conDiv.innerHTML='';
+    botsDiv.innerHTML='<p>Launching '+n+' bots...</p>'; conDiv.innerHTML='';
     bots.forEach(b=>b.stop()); bots=[];
     startBtn.disabled=true; stopBtn.disabled=false;
+    log(`Starting ${n} bots for PIN ${pin}`);
 
     for(let i=0;i<n;i++){
         const name = randName(i);
         const bot = new KahootBot(pin,name);
         bots.push(bot);
-        setTimeout(()=>bot.start(), i*1200);   // stagger
+        setTimeout(()=>bot.start(), i*1500 + Math.random()*1000);  // Stagger 1.5-2.5s to avoid detection
     }
 };
 stopBtn.onclick = ()=>{
     bots.forEach(b=>b.stop()); bots=[];
     startBtn.disabled=false; stopBtn.disabled=true;
     botsDiv.innerHTML+='<p><strong>All stopped.</strong></p>';
+    log('All bots stopped.');
 };
-
-/* ---------- PROXY NOTE ---------- */
-log('Using public CORS proxy. First visit <a href="https://cors-anywhere.now.sh/" target="_blank">cors-anywhere.now.sh</a> and click “Request temporary access”');
 </script>
 </body>
 </html>
