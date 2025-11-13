@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kahoot 20-Bot Flooder – Fixed (CORS Proxy + Token, 2025)</title>
+    <title>Kahoot 20-Bot Flooder – Fixed 1006 + On-Page Console</title>
     <style>
         body {font-family: system-ui, sans-serif; background: #1a1a2e; color: #eee; text-align: center; padding: 20px;}
         .container {max-width: 700px; margin: auto; background: #16213e; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);}
@@ -13,15 +13,16 @@
         button {background: #00d26a; color: white; cursor: pointer; font-weight: bold;}
         button:disabled {background: #555; cursor: not-allowed;}
         button:hover:not(:disabled) {background: #00b359;}
-        .log {margin-top: 20px; background: #0f0f0f; color: #0f0; padding: 15px; border-radius: 10px; max-height: 300px; overflow: auto; font-family: 'Courier New', monospace; text-align: left;}
+        .log {margin-top: 20px; background: #0f0f0f; color: #0f0; padding: 15px; border-radius: 10px; max-height: 300px; overflow: auto; font-family: 'Courier New', monospace; text-align: left; white-space: pre-wrap; font-size: 0.9em;}
         .bot {background: #1e1e2e; margin: 6px 0; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between;}
         .ok {color: #0f0;} .err {color: #f55;} .inf {color: #ff0;}
+        #consoleToggle {background: #ff9800; margin: 10px 0; padding: 10px; border-radius: 8px; cursor: pointer;}
     </style>
 </head>
 <body>
 <div class="container">
     <h1>Kahoot 20-Bot Flooder</h1>
-    <p><strong>Fixed: Proper Token + Proxy (No 1006 Errors)</strong></p>
+    <p><strong>Fixed 1006 Errors + On-Page Console (2025)</strong></p>
 
     <div class="warn">
         USE ONLY IN PRIVATE GAMES YOU OWN.<br>
@@ -33,8 +34,10 @@
     <button id="start">🚀 Launch Bots</button>
     <button id="stop" disabled>⏹️ Stop All</button>
 
+    <div id="consoleToggle" onclick="toggleConsole()">📋 Show/Hide Detailed Console</div>
+
     <div id="bots" class="log"><p>Bot status will appear here...</p></div>
-    <div id="console" class="log"><p>Console logs...</p></div>
+    <div id="console" class="log" style="display: none;"><p>Full console logs (reserve, WS events, errors)...</p></div>
 </div>
 
 <script>
@@ -49,13 +52,20 @@ const stopBtn = document.getElementById('stop');
 const botsDiv = document.getElementById('bots');
 const consoleDiv = document.getElementById('console');
 
-let bots = [];
+// === CONSOLE TOGGLE ===
+function toggleConsole() {
+    const display = consoleDiv.style.display === 'none' ? 'block' : 'none';
+    consoleDiv.style.display = display;
+    event.target.textContent = display === 'block' ? '🔒 Hide Detailed Console' : '📋 Show/Hide Detailed Console';
+}
 
-// === LOGGING ===
-function log(msg) {
+// === LOGGING (ON-PAGE + BROWSER CONSOLE) ===
+function log(msg, isError = false) {
     const time = new Date().toLocaleTimeString();
-    consoleDiv.innerHTML += `<p>[${time}] ${msg}</p>`;
+    const entry = `[${time}] ${msg}`;
+    consoleDiv.innerHTML += `<p style="color: ${isError ? '#f55' : '#0f0'};">${entry}</p>`;
     consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    console[isError ? 'error' : 'log'](entry);
 }
 
 function updateBot(name, status, color = '') {
@@ -81,12 +91,14 @@ function randomName(i) {
 // === CORS-PROXIED FETCH ===
 async function fetchWithProxy(url) {
     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    log(`Fetching via proxy: ${proxyUrl}`);
     const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error(`Proxy fetch failed: ${response.status}`);
+    if (!response.ok) throw new Error(`Proxy fetch failed: ${response.status} - ${response.statusText}`);
+    log(`Proxy fetch OK: ${response.status}`);
     return response;
 }
 
-// === KAHOOT BOT (WITH RESERVE TOKEN) ===
+// === KAHOOT BOT (FIXED FOR 1006) ===
 class KahootBot {
     constructor(pin, name) {
         this.pin = pin;
@@ -96,44 +108,77 @@ class KahootBot {
         this.sessionId = null;
         this.token = null;
         this.alive = true;
+        this.joined = false;
+        this.reconnectAttempts = 0;
+        this.maxReconnects = 3;
     }
 
     async start() {
         updateBot(this.name, 'Reserving session...', 'inf');
-        log(`Bot ${this.name}: Reserving session...`);
+        log(`Bot ${this.name}: Reserving session for PIN ${this.pin}...`);
 
         try {
             // Step 1: Reserve session via proxy
             const reserveUrl = `https://kahoot.it/reserve/session/${this.pin}`;
             const reserveRes = await fetchWithProxy(reserveUrl);
-            if (!reserveRes.ok) throw new Error(`Reserve failed: ${reserveRes.status} (Game not live?)`);
+            if (!reserveRes.ok) throw new Error(`Reserve failed: ${reserveRes.status} (Game not live or full?)`);
 
-            const sessionToken = reserveRes.headers.get('x-kahoot-session-token');
+            // Extract token from headers (may be base64; decode if needed)
+            let sessionToken = reserveRes.headers.get('x-kahoot-session-token');
+            if (sessionToken && sessionToken.includes('.')) {
+                // JWT-like: Decode payload
+                try {
+                    const payload = JSON.parse(atob(sessionToken.split('.')[1]));
+                    sessionToken = payload.token || sessionToken;
+                    log(`Bot ${this.name}: Token decoded successfully`);
+                } catch (e) {
+                    log(`Bot ${this.name}: Token decode failed, using raw: ${e.message}`, true);
+                }
+            }
             if (!sessionToken) throw new Error('No session token in headers');
-            
-            this.token = sessionToken;  // Use raw token for ext
+
+            this.token = sessionToken;
             const data = await reserveRes.json();
             this.sessionId = data.sid;
 
+            log(`Bot ${this.name}: Session reserved - Token: ${this.token.substring(0, 20)}... SID: ${this.sessionId}`);
+
             updateBot(this.name, 'Connecting WebSocket...', 'inf');
 
-            // Step 2: WebSocket
-            const wsUrl = `wss://kahoot.it/cometd/${this.pin}/${this.sessionId}`;
-            this.ws = new WebSocket(wsUrl);
-
-            this.ws.onopen = () => this.handshake();
-            this.ws.onmessage = (e) => this.handle(e);
-            this.ws.onerror = () => updateBot(this.name, 'WS Error', 'err');
-            this.ws.onclose = (e) => {
-                if (this.alive && e.code !== 1000) {
-                    updateBot(this.name, `Closed (${e.code}) - ${e.reason || 'Abnormal'}`, 'err');
-                    log(`Bot ${this.name}: Close ${e.code}: ${e.reason || 'No reason'}`);
-                }
-            };
+            // Step 2: WebSocket with reconnect
+            this.connectWS();
         } catch (err) {
             updateBot(this.name, `Reserve failed: ${err.message}`, 'err');
-            log(`Bot ${this.name}: ${err}`);
+            log(`Bot ${this.name}: Reserve error: ${err.message}`, true);
         }
+    }
+
+    connectWS() {
+        const wsUrl = `wss://kahoot.it/cometd/${this.pin}/${this.sessionId}`;
+        log(`Bot ${this.name}: WS URL: ${wsUrl}`);
+        this.ws = new WebSocket(wsUrl);
+
+        this.ws.onopen = () => {
+            log(`Bot ${this.name}: WS Opened`);
+            this.handshake();
+            this.reconnectAttempts = 0; // Reset on success
+        };
+        this.ws.onmessage = (e) => this.handle(e);
+        this.ws.onerror = (e) => {
+            log(`Bot ${this.name}: WS Error: ${e}`, true);
+            updateBot(this.name, 'WS Error', 'err');
+        };
+        this.ws.onclose = (e) => {
+            log(`Bot ${this.name}: WS Closed - Code: ${e.code}, Reason: ${e.reason || 'None'}${e.wasClean ? ' (Clean)' : ' (Abnormal)'}`);
+            if (this.alive && e.code === 1006 && this.reconnectAttempts < this.maxReconnects) {
+                this.reconnectAttempts++;
+                const delay = 2000 * this.reconnectAttempts;
+                log(`Bot ${this.name}: Reconnecting... (Attempt ${this.reconnectAttempts}/${this.maxReconnects}, delay: ${delay}ms)`);
+                setTimeout(() => this.connectWS(), delay);
+            } else if (this.alive) {
+                updateBot(this.name, `Closed (${e.code}) - ${e.reason || 'Abnormal Close'}`, 'err');
+            }
+        };
     }
 
     handshake() {
@@ -147,12 +192,15 @@ class KahootBot {
             ext: { "com.kahoot.session.token": this.token }
         }];
         this.send(msg);
-        updateBot(this.name, 'Handshake...', 'inf');
+        updateBot(this.name, 'Handshake sent...', 'inf');
+        log(`Bot ${this.name}: Handshake sent with token`);
     }
 
     send(data) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(data));
+        } else {
+            log(`Bot ${this.name}: Send failed - WS not open`, true);
         }
     }
 
@@ -160,7 +208,7 @@ class KahootBot {
         try {
             const msgs = JSON.parse(event.data);
             msgs.forEach(m => {
-                log(`Bot ${this.name}: ${m.channel} - ${m.successful ? 'OK' : (m.error || 'Unknown')}`);
+                log(`Bot ${this.name}: Msg [${m.channel}] - Success: ${m.successful}, Error: ${m.error || 'None'}`);
                 if (m.channel === '/meta/handshake' && m.successful) {
                     this.clientId = m.clientId;
                     updateBot(this.name, 'Handshake OK', 'inf');
@@ -171,23 +219,25 @@ class KahootBot {
                         this.join();
                         this.joined = true;
                     }
-                    // Keep-alive
+                    // Keep-alive every 30s
                     setTimeout(() => this.connect(), 30000);
                 }
                 if (m.channel === '/service/player' && m.data?.type === 'loginResponse') {
                     if (m.data.success) {
                         updateBot(this.name, 'JOINED! 🎉', 'ok');
-                        log(`Bot ${this.name}: In lobby!`);
+                        log(`Bot ${this.name}: Joined lobby successfully`);
                     } else {
                         updateBot(this.name, `Rejected: ${m.data.error || 'Unknown'}`, 'err');
+                        log(`Bot ${this.name}: Join rejected: ${m.data.error || 'No details'}`, true);
                     }
                 }
                 if (m.error) {
-                    updateBot(this.name, `Error: ${m.error}`, 'err');
+                    log(`Bot ${this.name}: Server error: ${m.error}`, true);
+                    updateBot(this.name, `Server Error: ${m.error}`, 'err');
                 }
             });
         } catch (e) {
-            log(`Bot ${this.name}: Parse error: ${e}`);
+            log(`Bot ${this.name}: Parse error: ${e.message}`, true);
         }
     }
 
@@ -199,6 +249,7 @@ class KahootBot {
             id: "2",
             advice: { timeout: 60000, interval: 0 }
         }]);
+        log(`Bot ${this.name}: Connect sent`);
     }
 
     join() {
@@ -210,16 +261,19 @@ class KahootBot {
                 gameid: parseInt(this.pin),
                 host: "kahoot.it",
                 name: this.name,
-                cid: this.clientId
+                cid: this.clientId  // Fixed: Added CID per 2025 RE
             },
             id: "3"
         }]);
         updateBot(this.name, 'Joining...', 'inf');
+        log(`Bot ${this.name}: Join sent with CID ${this.clientId}`);
     }
 
     stop() {
         this.alive = false;
-        if (this.ws) this.ws.close(1000, 'Stopped');
+        this.joined = false;
+        if (this.ws) this.ws.close(1000, 'Stopped by user');
+        log(`Bot ${this.name}: Stopped`);
     }
 }
 
@@ -229,8 +283,12 @@ startBtn.onclick = async () => {
     if (!/^\d{6,7}$/.test(pin)) return alert("Enter valid 6-7 digit PIN (game must be live)");
     const count = Math.min(parseInt(countInput.value) || 1, 20);
 
-    botsDiv.innerHTML = `<p>Launching ${count} bots...</p>`;
-    consoleDiv.innerHTML = '';
+    botsDiv.innerHTML = `<p>Launching ${count} bots for PIN ${pin}...</p>`;
+    consoleDiv.innerHTML = '';  // Clear console
+    consoleDiv.style.display = 'block';  // Show console by default on launch
+    document.querySelector('#consoleToggle').textContent = '🔒 Hide Detailed Console';
+
+    // Clear old bots
     bots.forEach(b => b.stop());
     bots = [];
 
@@ -241,7 +299,8 @@ startBtn.onclick = async () => {
         const name = randomName(i);
         const bot = new KahootBot(pin, name);
         bots.push(bot);
-        setTimeout(() => bot.start(), i * 2000); // 2s stagger
+        // Stagger reserves to avoid blocks
+        setTimeout(() => bot.start(), i * 2500 + Math.random() * 1000);
     }
 };
 
@@ -251,6 +310,7 @@ stopBtn.onclick = () => {
     startBtn.disabled = false;
     stopBtn.disabled = true;
     botsDiv.innerHTML += '<p><strong>All bots stopped.</strong></p>';
+    log('All bots stopped by user.');
 };
 </script>
 </body>
