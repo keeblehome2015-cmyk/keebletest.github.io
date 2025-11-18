@@ -2,149 +2,121 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>File Receiver – GitHub Pages</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TONS OF MARIJUANA FOR EDUCATION: The Ultimate Learning Enhancer</title>
     <style>
-        body {font-family: system-ui, sans-serif; margin: 2rem; background:#f9f9fb; color:#222;}
-        h1 {margin-bottom: .5rem;}
-        #dropzone {
-            border: 3px dashed #777;
-            border-radius: 12px;
-            padding: 2rem;
+        body {
+            background: linear-gradient(45deg, #006400, #00ff00, #228b22);
+            color: lime;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
             text-align: center;
-            background: #fff;
-            transition: background .2s;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
         }
-        #dropzone.dragover {background:#e1f5fe; border-color:#2196f3;}
-        #output {margin-top: 2rem;}
-        .file {margin: .5rem 0; padding: .75rem; background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.1);}
-        .file img, .file pre {max-width:100%; margin-top:.5rem;}
-        .error {color:#b00020;}
+        header {
+            background: rgba(0,0,0,0.7);
+            padding: 40px;
+            font-size: 3em;
+            text-shadow: 0 0 20px lime, 0 0 40px green;
+        }
+        .weed-leaf {
+            font-size: 100px;
+            animation: spin 10s linear infinite;
+            display: block;
+            margin: 20px auto;
+        }
+        @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+        section {
+            max-width: 900px;
+            margin: 40px auto;
+            background: rgba(0,0,0,0.6);
+            padding: 30px;
+            border-radius: 20px;
+            border: 5px solid lime;
+            box-shadow: 0 0 30px rgba(0,255,0,0.8);
+        }
+        h1, h2 {
+            color: #00ff00;
+            text-shadow: 3px 3px 0 #000;
+        }
+        ul {
+            font-size: 1.5em;
+            line-height: 2em;
+        }
+        .blunt {
+            font-size: 4em;
+            margin: 30px;
+        }
+        footer {
+            margin-top: 100px;
+            padding: 40px;
+            background: #000;
+            color: lime;
+            font-size: 2em;
+        }
+        .rainbow {
+            animation: rainbow 6s infinite;
+        }
+        @keyframes rainbow {
+            0%   { color: red; }
+            14%  { color: orange; }
+            28%  { color: yellow; }
+            42%  { color: green; }
+            57%  { color: blue; }
+            71%  { color: indigo; }
+            85%  { color: violet; }
+            100% { color: red; }
+        }
     </style>
 </head>
 <body>
 
-<h1>File Receiver</h1>
-<p>POST files to this page from anywhere, or drag-and-drop them here.</p>
+    <header>
+        <div class="weed-leaf">🌿</div>
+        TONS OF MARIJUANA IS THE FUTURE OF EDUCATION
+        <div class="weed-leaf">🌿</div>
+    </header>
 
-<div id="dropzone">
-    Drop files here or <label><input type="file" id="fileInput" multiple style="display:none;">click to select</label>
-</div>
+    <section>
+        <h1 class="rainbow">Why Every Student Needs at Least 5 Pounds of Weed Per Semester</h1>
+        <p><strong>Science has proven it (probably):</strong> Massive quantities of cannabis dramatically enhance learning, creativity, and the ability to understand quantum physics while eating an entire family-size bag of Doritos.</p>
 
-<div id="output"></div>
+        <h2>Undeniable Educational Benefits of Smoking TONS of Weed:</h2>
+        <ul>
+            <li>Turns boring calculus into a beautiful dance of numbers that literally talk to you</li>
+            <li>Makes history lectures feel like you're personally chilling with Cleopatra and Genghis Khan</li>
+            <li>Philosophy classes finally make sense when you're one with the universe at 3 a.m.</li>
+            <li>Foreign languages? Bro, you’ll be fluent in ancient Sumerian after the third blunt</li>
+            <li>Enhances ability to write 20-page essays in one sitting (mostly about how trees are our friends)</li>
+            <li>Group study sessions become legendary 12-hour brainstorming sessions about the meaning of life</li>
+            <li>Suddenly understand string theory, the meaning of 42, and why pineapple on pizza is valid</li>
+            <li>Perfect attendance because forgetting you have class is impossible when you're that elevated</li>
+        </ul>
 
-<script>
-/* -------------------------------------------------------------
-   1. Handle direct <form> POSTs (multipart/form-data)
-   ------------------------------------------------------------- */
-async function handleFormPost(event) {
-    event.preventDefault();               // stop normal navigation
-    const formData = new FormData(event.target);
-    await displayFiles(formData);
-}
+        <div class="blunt">💨</div>
 
-/* -------------------------------------------------------------
-   2. Handle drag-and-drop or file-input selection
-   ------------------------------------------------------------- */
-const dropzone   = document.getElementById('dropzone');
-const fileInput  = document.getElementById('fileInput');
-const output     = document.getElementById('output');
+        <h2>Recommended Daily Academic Dosage:</h2>
+        <ul>
+            <li>Breakfast blunt – Wake & Bake & Learn</li>
+            <li>Mid-morning joint – Keeps the focus sharp</li>
+            <li>Lunchtime bong rips – Nutritional</li>
+            <li>Afternoon dab – For advanced topics</li>
+            <li>Evening edibles (5000mg) – Long-term memory retention</li>
+            <li>3 a.m. gravity bong – Final exam enlightenment</li>
+        </ul>
 
-dropzone.addEventListener('click', () => fileInput.click());
+        <h1 class="rainbow">SCHOOLS THAT DON'T PROVIDE FREE UNLIMITED WEED ARE VIOLATING HUMAN RIGHTS</h1>
+        <p>Change my mind. You can’t.</p>
+    </section>
 
-fileInput.addEventListener('change', () => {
-    const dt = new DataTransfer();
-    for (const f of fileInput.files) dt.items.add(f);
-    displayFiles(dt.files);
-});
-
-['dragover', 'dragenter'].forEach(ev => {
-    dropzone.addEventListener(ev, e => {
-        e.preventDefault();
-        dropzone.classList.add('dragover');
-    });
-});
-['dragleave', 'dragend', 'drop'].forEach(ev => {
-    dropzone.addEventListener(ev, e => {
-        e.preventDefault();
-        dropzone.classList.remove('dragover');
-    });
-});
-dropzone.addEventListener('drop', e => {
-    e.preventDefault();
-    displayFiles(e.dataTransfer.files);
-});
-
-/* -------------------------------------------------------------
-   3. Core: read and render each file
-   ------------------------------------------------------------- */
-async function displayFiles(source) {
-    output.innerHTML = '';               // clear previous results
-
-    // source can be FileList or FormData
-    const files = source instanceof FormData ? Array.from(source.values()) : Array.from(source);
-
-    for (const file of files) {
-        const div = document.createElement('div');
-        div.className = 'file';
-
-        const name = document.createElement('strong');
-        name.textContent = file.name || file.fieldName || 'unknown';
-        div.appendChild(name);
-
-        try {
-            if (file.type.startsWith('image/')) {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(file);
-                div.appendChild(img);
-            } else if (file.type === 'application/json' || file.name.endsWith('.json')) {
-                const txt = await file.text();
-                const pre = document.createElement('pre');
-                pre.textContent = JSON.stringify(JSON.parse(txt), null, 2);
-                div.appendChild(pre);
-            } else {
-                // treat everything else as plain text
-                const txt = await file.text();
-                const pre = document.createElement('pre');
-                pre.textContent = txt;
-                div.appendChild(pre);
-            }
-        } catch (err) {
-            const errSpan = document.createElement('span');
-            errSpan.className = 'error';
-            errSpan.textContent = `Error reading file: ${err.message}`;
-            div.appendChild(errSpan);
-        }
-
-        output.appendChild(div);
-    }
-}
-
-/* -------------------------------------------------------------
-   4. Intercept any POST that lands on this page
-   ------------------------------------------------------------- */
-if (window.location.search.includes('post=1')) {
-    // GitHub Pages will reload the page with the posted body as query string – not useful.
-    // Instead we expose a tiny endpoint via a hidden form that external scripts can submit to.
-    // The trick below lets *any* site POST to us using fetch + formData.
-    // (GitHub Pages still serves only the static file, but the browser can receive the payload.)
-    // -------------------------------------------------
-    // This part is **optional** – it creates a tiny "receiver" form that external scripts can target.
-    const receiverForm = document.createElement('form');
-    receiverForm.method = 'POST';
-    receiverForm.enctype = 'multipart/form-data';
-    receiverForm.style.display = 'none';
-    receiverForm.addEventListener('submit', handleFormPost);
-    document.body.appendChild(receiverForm);
-}
-
-/* -------------------------------------------------------------
-   5. Public helper for external scripts (copy-paste)
-   ------------------------------------------------------------- */
-console.log('%cSend files to this page with:\n' +
-    'fetch(location.href, {method:"POST", body: formData})',
-    'font-weight:bold; color:#006400;');
-</script>
+    <footer>
+        <div class="weed-leaf">🌿</div>
+        This message brought to you by the Department of Based Education
+        <br><br>
+        <strong>SMOKE WEED EVERY DAY FOR A+ GRADES</strong>
+        <div class="weed-leaf">🌿</div>
+    </footer>
 
 </body>
 </html>
