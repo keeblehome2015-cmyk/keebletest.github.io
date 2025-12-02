@@ -3,120 +3,514 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TONS OF MARIJUANA FOR EDUCATION: The Ultimate Learning Enhancer</title>
+    <title>P2P WebRTC Shooter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            background: linear-gradient(45deg, #006400, #00ff00, #228b22);
-            color: lime;
-            font-family: 'Comic Sans MS', cursive, sans-serif;
-            text-align: center;
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
             margin: 0;
-            padding: 0;
-            overflow-x: hidden;
+            overflow: hidden;
         }
-        header {
-            background: rgba(0,0,0,0.7);
-            padding: 40px;
-            font-size: 3em;
-            text-shadow: 0 0 20px lime, 0 0 40px green;
+        #game-container {
+            display: none; /* Hidden until connected */
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
         }
-        .weed-leaf {
-            font-size: 100px;
-            animation: spin 10s linear infinite;
-            display: block;
-            margin: 20px auto;
+        canvas {
+            background-color: #2a2a2a;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+            border: 1px solid #0891b2;
+            max-width: 100vw;
+            max-height: 80vh;
+            aspect-ratio: 16 / 9;
         }
-        @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
-        section {
-            max-width: 900px;
-            margin: 40px auto;
-            background: rgba(0,0,0,0.6);
-            padding: 30px;
-            border-radius: 20px;
-            border: 5px solid lime;
-            box-shadow: 0 0 30px rgba(0,255,0,0.8);
+        .info-panel {
+            background-color: #2a2a2a;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            width: 800px;
+            max-width: 90vw;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
-        h1, h2 {
-            color: #00ff00;
-            text-shadow: 3px 3px 0 #000;
+        #connection-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(26, 26, 26, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
         }
-        ul {
-            font-size: 1.5em;
-            line-height: 2em;
+        .connection-box {
+            background-color: #2a2a2a;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
         }
-        .blunt {
-            font-size: 4em;
-            margin: 30px;
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            background-color: #3a3a3a;
+            color: #f0f0f0;
+            border: 1px solid #555;
+            border-radius: 0.25rem;
+            padding: 0.5rem;
+            font-family: monospace;
+            resize: vertical;
         }
-        footer {
-            margin-top: 100px;
-            padding: 40px;
-            background: #000;
-            color: lime;
-            font-size: 2em;
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-btn {
+            background-color: #3a3a3a;
+            color: #a0a0a0;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem 0.25rem 0 0;
+            cursor: pointer;
         }
-        .rainbow {
-            animation: rainbow 6s infinite;
+        .tab-btn.active {
+            background-color: #2a2a2a;
+            color: #0891b2;
+            font-weight: 600;
         }
-        @keyframes rainbow {
-            0%   { color: red; }
-            14%  { color: orange; }
-            28%  { color: yellow; }
-            42%  { color: green; }
-            57%  { color: blue; }
-            71%  { color: indigo; }
-            85%  { color: violet; }
-            100% { color: red; }
+        .copy-btn {
+            background-color: #0891b2;
+            color: white;
+            border: none;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            margin-left: 0.5rem;
         }
+        .copy-btn:hover { background-color: #06b6d4; }
     </style>
 </head>
-<body>
+<body class="bg-gray-900 text-gray-100">
 
-    <header>
-        <div class="weed-leaf">🌿</div>
-        TONS OF MARIJUANA IS THE FUTURE OF EDUCATION
-        <div class="weed-leaf">🌿</div>
-    </header>
+    <!-- Connection UI -->
+    <div id="connection-overlay">
+        <div class="connection-box">
+            <h2 class="text-2xl font-bold text-center mb-4 text-cyan-400">P2P Shooter Connection</h2>
+            <div class="flex border-b border-gray-600 mb-4">
+                <button id="host-tab-btn" class="tab-btn active" onclick="showTab('host')">Host Game</button>
+                <button id="join-tab-btn" class="tab-btn" onclick="showTab('join')">Join Game</button>
+            </div>
 
-    <section>
-        <h1 class="rainbow">Why Every Student Needs at Least 5 Pounds of Weed Per Semester</h1>
-        <p><strong>Science has proven it (probably):</strong> Massive quantities of cannabis dramatically enhance learning, creativity, and the ability to understand quantum physics while eating an entire family-size bag of Doritos.</p>
+            <!-- Host Tab -->
+            <div id="host-tab" class="tab-content active space-y-4">
+                <p>1. Click "Host" to generate your offer code.</p>
+                <button id="hostBtn" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded">1. Host Game</button>
+                
+                <div>
+                    <label class="block mb-1 text-sm font-medium">2. Send this Offer Code to your friend:</label>
+                    <div class="flex">
+                        <textarea id="offerCode" readonly placeholder="Your offer code will appear here..."></textarea>
+                        <button class="copy-btn" onclick="copyToClipboard('offerCode')">Copy</button>
+                    </div>
+                </div>
 
-        <h2>Undeniable Educational Benefits of Smoking TONS of Weed:</h2>
-        <ul>
-            <li>Turns boring calculus into a beautiful dance of numbers that literally talk to you</li>
-            <li>Makes history lectures feel like you're personally chilling with Cleopatra and Genghis Khan</li>
-            <li>Philosophy classes finally make sense when you're one with the universe at 3 a.m.</li>
-            <li>Foreign languages? Bro, you’ll be fluent in ancient Sumerian after the third blunt</li>
-            <li>Enhances ability to write 20-page essays in one sitting (mostly about how trees are our friends)</li>
-            <li>Group study sessions become legendary 12-hour brainstorming sessions about the meaning of life</li>
-            <li>Suddenly understand string theory, the meaning of 42, and why pineapple on pizza is valid</li>
-            <li>Perfect attendance because forgetting you have class is impossible when you're that elevated</li>
-        </ul>
+                <div>
+                    <label for="answerCodeInput" class="block mb-1 text-sm font-medium">3. Paste your friend's Answer Code here:</label>
+                    <textarea id="answerCodeInput" placeholder="Paste answer code..."></textarea>
+                </div>
+                <button id="connectHostBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">4. Connect</button>
+            </div>
 
-        <div class="blunt">💨</div>
+            <!-- Join Tab -->
+            <div id="join-tab" class="tab-content space-y-4">
+                <div>
+                    <label for="offerCodeInput" class="block mb-1 text-sm font-medium">1. Paste the host's Offer Code here:</label>
+                    <textarea id="offerCodeInput" placeholder="Paste offer code..."></textarea>
+                </div>
+                <button id="joinBtn" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded">2. Generate Answer</button>
 
-        <h2>Recommended Daily Academic Dosage:</h2>
-        <ul>
-            <li>Breakfast blunt – Wake & Bake & Learn</li>
-            <li>Mid-morning joint – Keeps the focus sharp</li>
-            <li>Lunchtime bong rips – Nutritional</li>
-            <li>Afternoon dab – For advanced topics</li>
-            <li>Evening edibles (5000mg) – Long-term memory retention</li>
-            <li>3 a.m. gravity bong – Final exam enlightenment</li>
-        </ul>
+                <div>
+                    <label class="block mb-1 text-sm font-medium">3. Send this Answer Code back to the host:</label>
+                    <div class="flex">
+                        <textarea id="answerCode" readonly placeholder="Your answer code will appear here..."></textarea>
+                        <button class="copy-btn" onclick="copyToClipboard('answerCode')">Copy</button>
+                    </div>
+                </div>
+            </div>
+            
+            <p id="status" class="text-center text-yellow-400 mt-4 h-5"></p>
 
-        <h1 class="rainbow">SCHOOLS THAT DON'T PROVIDE FREE UNLIMITED WEED ARE VIOLATING HUMAN RIGHTS</h1>
-        <p>Change my mind. You can’t.</p>
-    </section>
+        </div>
+    </div>
 
-    <footer>
-        <div class="weed-leaf">🌿</div>
-        This message brought to you by the Department of Based Education
-        <br><br>
-        <strong>SMOKE WEED EVERY DAY FOR A+ GRADES</strong>
-        <div class="weed-leaf">🌿</div>
-    </footer>
+    <!-- Game UI -->
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="450"></canvas>
+        <div class="info-panel">
+            <h2 class="text-xl font-bold text-cyan-500 mb-2">Game Connected!</h2>
+            <p><strong class="text-cyan-400">Controls:</strong> WASD to Move, Click to Shoot</p>
+        </div>
+    </div>
 
+    <script>
+        // --- DOM Elements ---
+        const gameContainer = document.getElementById('game-container');
+        const connectionOverlay = document.getElementById('connection-overlay');
+        const statusEl = document.getElementById('status');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- WebRTC Config ---
+        const rtcConfig = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        };
+        let peerConnection;
+        let dataChannel;
+
+        // --- Game State ---
+        let localPlayer = {
+            id: 'local',
+            x: 100,
+            y: 100,
+            color: `hsl(${Math.random() * 360}, 100%, 70%)`,
+            health: 100,
+            size: 20,
+        };
+        let remotePlayer = null;
+        let bullets = []; // { id, x, y, vx, vy, ownerId }
+        let keys = {};
+        let lastShotTime = 0;
+        const shotCooldown = 200;
+
+        // --- UI Functions ---
+        window.showTab = (tabName) => {
+            document.getElementById('host-tab').classList.toggle('active', tabName === 'host');
+            document.getElementById('join-tab').classList.toggle('active', tabName === 'join');
+            document.getElementById('host-tab-btn').classList.toggle('active', tabName === 'host');
+            document.getElementById('join-tab-btn').classList.toggle('active', tabName === 'join');
+        }
+
+        window.copyToClipboard = (elementId) => {
+            const textarea = document.getElementById(elementId);
+            textarea.select();
+            
+            // Use execCommand for compatibility within iframe environments
+            try {
+                document.execCommand('copy');
+                statusEl.innerText = "Copied to clipboard!";
+                setTimeout(() => statusEl.innerText = "", 2000);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                statusEl.innerText = "Copy failed. Please copy manually.";
+            }
+        }
+
+        // --- WebRTC Signaling ---
+        document.getElementById('hostBtn').onclick = async () => {
+            statusEl.innerText = "Creating offer...";
+            peerConnection = new RTCPeerConnection(rtcConfig);
+            
+            // This listener waits for all ICE candidates to be gathered
+            peerConnection.onicecandidate = e => {
+                if (e.candidate === null) {
+                    // All candidates gathered, show the full offer
+                    const offerCode = JSON.stringify(peerConnection.localDescription);
+                    document.getElementById('offerCode').value = offerCode;
+                    statusEl.innerText = "Offer created. Send to friend.";
+                }
+            };
+            
+            dataChannel = peerConnection.createDataChannel('game');
+            setupDataChannelListeners();
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+        };
+
+        document.getElementById('connectHostBtn').onclick = async () => {
+            try {
+                const answer = JSON.parse(document.getElementById('answerCodeInput').value);
+                if (!answer) throw new Error("Invalid Answer Code");
+                
+                statusEl.innerText = "Connecting...";
+                await peerConnection.setRemoteDescription(answer);
+            } catch (err) {
+                console.error(err);
+                statusEl.innerText = "Invalid Answer Code. Paste again.";
+            }
+        };
+
+        document.getElementById('joinBtn').onclick = async () => {
+            try {
+                const offer = JSON.parse(document.getElementById('offerCodeInput').value);
+                if (!offer) throw new Error("Invalid Offer Code");
+
+                statusEl.innerText = "Creating answer...";
+                peerConnection = new RTCPeerConnection(rtcConfig);
+
+                peerConnection.onicecandidate = e => {
+                    if (e.candidate === null) {
+                        const answerCode = JSON.stringify(peerConnection.localDescription);
+                        document.getElementById('answerCode').value = answerCode;
+                        statusEl.innerText = "Answer created. Send back to host.";
+                    }
+                };
+                
+                peerConnection.ondatachannel = e => {
+                    dataChannel = e.channel;
+                    setupDataChannelListeners();
+                };
+
+                await peerConnection.setRemoteDescription(offer);
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+
+            } catch (err) {
+                console.error(err);
+                statusEl.innerText = "Invalid Offer Code. Paste again.";
+            }
+        };
+
+        // --- Data Channel Logic ---
+        function setupDataChannelListeners() {
+            dataChannel.onopen = () => {
+                console.log("Data channel OPEN");
+                startGame();
+            };
+            dataChannel.onclose = () => {
+                console.log("Data channel CLOSED");
+                alert("Connection lost! Please refresh to restart.");
+            };
+            dataChannel.onmessage = e => {
+                handleMessage(e.data);
+            };
+        }
+
+        function handleMessage(data) {
+            try {
+                const msg = JSON.parse(data);
+                switch(msg.type) {
+                    case 'init':
+                        remotePlayer = msg.data;
+                        break;
+                    case 'update':
+                        if (remotePlayer) {
+                            remotePlayer.x = msg.data.x;
+                            remotePlayer.y = msg.data.y;
+                            remotePlayer.health = msg.data.health;
+                        }
+                        break;
+                    case 'shoot':
+                        bullets.push(msg.data);
+                        break;
+                    case 'destroy_bullet':
+                        bullets = bullets.filter(b => b.id !== msg.id);
+                        break;
+                }
+            } catch (err) {
+                console.error("Failed to parse message:", err);
+            }
+        }
+        
+        function sendData(type, data) {
+            if (dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(JSON.stringify({ type, data }));
+            }
+        }
+
+        // --- Game Logic ---
+        function startGame() {
+            connectionOverlay.style.display = 'none';
+            gameContainer.style.display = 'flex';
+            resizeCanvas();
+
+            // Send initial player info
+            sendData('init', localPlayer);
+
+            // Start update loop
+            setInterval(() => {
+                sendData('update', { 
+                    x: localPlayer.x, 
+                    y: localPlayer.y, 
+                    health: localPlayer.health 
+                });
+            }, 50); // Send updates 20 times/sec
+
+            gameLoop();
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            updateLocalPlayer();
+            updateBullets();
+
+            if (localPlayer.health > 0) drawPlayer(localPlayer);
+            if (remotePlayer && remotePlayer.health > 0) drawPlayer(remotePlayer);
+            
+            drawBullets();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateLocalPlayer() {
+            if (localPlayer.health <= 0) return;
+
+            const speed = 3;
+            if (keys['w'] || keys['ArrowUp']) localPlayer.y -= speed;
+            if (keys['s'] || keys['ArrowDown']) localPlayer.y += speed;
+            if (keys['a'] || keys['ArrowLeft']) localPlayer.x -= speed;
+            if (keys['d'] || keys['ArrowRight']) localPlayer.x += speed;
+
+            // Clamping
+            localPlayer.x = Math.max(localPlayer.size / 2, Math.min(canvas.width - localPlayer.size / 2, localPlayer.x));
+            localPlayer.y = Math.max(localPlayer.size / 2, Math.min(canvas.height - localPlayer.size / 2, localPlayer.y));
+        }
+
+        function updateBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.x += b.vx;
+                b.y += b.vy;
+
+                // Check for out-of-bounds
+                if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+                
+                // Check for collision
+                // Only the local client checks for hits *against itself*
+                if (b.ownerId !== 'local' && localPlayer.health > 0 && isColliding(b, localPlayer)) {
+                    localPlayer.health -= 10;
+                    sendData('destroy_bullet', { id: b.id }); // Tell other player it's gone
+                    bullets.splice(i, 1);
+                    
+                    if (localPlayer.health <= 0) {
+                        localPlayer.health = 0;
+                        setTimeout(respawnPlayer, 3000); // Respawn
+                    }
+                    continue;
+                }
+            }
+        }
+        
+        function isColliding(bullet, player) {
+            const dx = player.x - bullet.x;
+            const dy = player.y - bullet.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance < player.size / 2 + 3; // 3 is bullet radius
+        }
+        
+        function respawnPlayer() {
+            localPlayer.x = Math.random() * (canvas.width - 30) + 15;
+            localPlayer.y = Math.random() * (canvas.height - 30) + 15;
+            localPlayer.health = 100;
+        }
+
+        function drawPlayer(player) {
+            // Body
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Health bar
+            const healthBarWidth = 30;
+            const healthBarHeight = 5;
+            const healthBarX = player.x - healthBarWidth / 2;
+            const healthBarY = player.y - player.size / 2 - 10;
+            
+            ctx.fillStyle = '#333';
+            ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+            
+            const currentHealthWidth = (player.health / 100) * healthBarWidth;
+            ctx.fillStyle = player.health > 50 ? '#4ade80' : (player.health > 20 ? '#facc15' : '#f87171');
+            ctx.fillRect(healthBarX, healthBarY, currentHealthWidth, healthBarHeight);
+        }
+
+        function drawBullets() {
+            ctx.fillStyle = '#f0f0f0';
+            bullets.forEach(b => {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        function shoot(mouseX, mouseY) {
+            if (localPlayer.health <= 0) return;
+            
+            const now = Date.now();
+            if (now - lastShotTime < shotCooldown) return;
+            lastShotTime = now;
+
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const targetX = (mouseX - rect.left) * scaleX;
+            const targetY = (mouseY - rect.top) * scaleY;
+
+            const dx = targetX - localPlayer.x;
+            const dy = targetY - localPlayer.y;
+            const mag = Math.sqrt(dx * dx + dy * dy);
+            
+            const bulletSpeed = 7;
+            const bullet = {
+                id: crypto.randomUUID(), // Unique ID
+                ownerId: 'local',
+                x: localPlayer.x,
+                y: localPlayer.y,
+                vx: (dx / mag) * bulletSpeed,
+                vy: (dy / mag) * bulletSpeed,
+            };
+
+            bullets.push(bullet); // Add locally
+            sendData('shoot', bullet); // Send to remote
+        }
+
+        // --- Event Listeners ---
+        window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
+        window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) { // Left click
+                shoot(e.clientX, e.clientY);
+            }
+        });
+        
+        function resizeCanvas() {
+            const container = document.getElementById('game-container').parentElement;
+            let width = container.clientWidth;
+            let height = container.clientHeight * 0.8; // Use 80% of viewport height
+
+            const aspectRatio = 16 / 9;
+            if (width / height > aspectRatio) {
+                width = height * aspectRatio;
+            } else {
+                height = width / aspectRatio;
+            }
+            
+            canvas.width = 800; // Keep internal resolution
+            canvas.height = 450;
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+    </script>
 </body>
 </html>
